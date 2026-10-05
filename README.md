@@ -30,6 +30,7 @@ pnpm start
 
 - 两个端口不重叠，dev 与生产服务可同时运行。
 - 端口和路径全部由启动命令通过环境变量传入，代码里没有默认值；缺失 `APP_PORT` 或 `WEB_ROOT` 时服务直接报错退出，不会静默退化成别的端口。
+- `vite.config.ts` 会 import 服务端代码（`env.ts` 与 dev 插件），所以这份配置不再只是「产物放哪」，它同时是 dev server 的配置。好处是 dev 就是一个纯 `vite` 进程，代价是配置与运行时不再解耦。
 - 读取接口只接受绝对路径，传入相对路径会返回 400；文件不存在返回 404。
 - 这个接口按用户给的绝对路径直接读文件，等于把服务器文件系统暴露给前端，仅适合本机演示，不要放到公网。
 - `pnpm start` 只启动、不构建；上线流程是 `pnpm run build` 然后 `pnpm start`。
@@ -47,7 +48,7 @@ API 本体在 `src/server/api/readFile.ts`，导出 `createApiRouter()`，包含
 
 挂载方式有两处，各自只做一件事：
 
-- `src/server/devServer.ts`（开发）用 Vite 的 `createServer()` 程序化启动，端口来自 `APP_PORT`，并挂上 `devApiPlugin()`。插件在 `configureServer` 里插一个中间件，命中 `/api/` 的请求转交一个 Express app，其余放行给 Vite 自己处理。因此 dev 下 Vite 独占一个端口，页面和 API 都在里面。
+- `vite.config.ts`（开发）就是那个 dev server 的配置。`pnpm run dev` 只跑 `vite` 命令，没有自建的 Node 进程，Vite 自己监听端口。配置里 `plugins` 挂 `devApiPlugin()`，插件在 `configureServer` 里插一个中间件，命中 `/api/` 的请求转交一个 Express app，其余放行给 Vite 自己处理。因此 dev 下 Vite 独占一个端口，页面和 API 都在里面。
 - `src/server/main.ts`（生产）是一个独立 Node 进程：`express.static(dist)` 提供构建产物页面，进程内 `app.listen(APP_PORT)` 监听，同一个端口上同时有页面和 API。
 
 ### 关键代码解读
@@ -57,10 +58,14 @@ API 本体在 `src/server/api/readFile.ts`，导出 `createApiRouter()`，包含
 `package.json` 里端口前缀写在真正启动服务的那条命令上，不能跨 `&&`：
 
 ```json
-"dev":   "WEB_ROOT=\"$PWD\" APP_PORT=52301 vite-node src/server/devServer.ts",
+"dev":   "APP_PORT=52301 vite",
 "build": "vite build && vite build --ssr src/server/main.ts --outDir dist-ssr/server",
 "start": "WEB_ROOT=\"$PWD\" APP_PORT=52302 node dist-ssr/server/main.js"
 ```
+
+dev 只需注入端口；`WEB_ROOT` 只有生产需要，因为只有生产要读 `dist`。这也是为什么 `env.ts` 里两个取值函数是惰性的：`vite build` 会加载同一个 `vite.config.ts`，如果配置在模块加载时就要求 `WEB_ROOT`，构建会直接失败。
+
+`strictPort: true` 必须开：端口被占时 Vite 直接报错退出，而不是自动换一个端口。自动换端口会让已经配好地址的客户端连不上。
 
 这也解释了为什么 `start` 不带 `build`：`APP_PORT=… pnpm build && pnpm start` 里前缀只作用于 `build`，第二条命令根本拿不到端口。
 

@@ -13,6 +13,7 @@ function requireEnv(name: string): string {
 }
 
 // 端口：唯一来源是 APP_PORT，缺失或非法直接抛错
+// 只在真正要监听端口时调用，build 阶段不需要端口
 export const resolveServerPort = (): number => {
   // 转为数字
   const port = Number(process.env.APP_PORT);
@@ -24,8 +25,9 @@ export const resolveServerPort = (): number => {
   return port;
 };
 
-// 前端工程根目录：用于定位 dist 静态产物
-export const WEB_ROOT_DIR = requireEnv("WEB_ROOT");
-
 // 前端产物目录：生产环境由 express.static 提供
-export const WEB_DIST_DIR = path.join(WEB_ROOT_DIR, "dist");
+// 惰性求值，vite build 只写产物、不读它，不必注入 WEB_ROOT
+export const resolveWebDistDir = (): string => {
+  // 工程根目录由启动命令用 $PWD 现算注入，不在代码里算相对层级
+  return path.join(requireEnv("WEB_ROOT"), "dist");
+};
