@@ -2,7 +2,7 @@ import { useState } from "react"; // 引入 React 状态 Hook
 
 // 页面组件：输入绝对路径，点「读取」，内容显示在下方只读文本域
 const App = (): React.JSX.Element => {
-  // 输入框内容
+  // 输入框内容：默认填一个绝对路径，方便直接点读取看到效果
   const [path, setPath] = useState("/Users/peng.li/workspace/freewind-demos/typescript-react-vite-express-dev-prod-single-port-demo/files/notes.md");
   // 文本域展示的内容
   const [content, setContent] = useState("");
@@ -37,7 +37,7 @@ const App = (): React.JSX.Element => {
       <h1>单端口 Server 的两种启动方式</h1>
       {/* 说明 */}
       <p className="hint">
-        开发：<code>pnpm run dev</code>（Vite 承载页面 + API）｜生产：<code>pnpm run build &amp;&amp; pnpm start</code>（Node
+        开发：<code>pnpm run dev</code>（Vite 承载页面 + API）｜生产：<code>pnpm run build</code> 后 <code>pnpm start</code>（Node
         server 承载页面 + API）
       </p>
       {/* 输入行 */}

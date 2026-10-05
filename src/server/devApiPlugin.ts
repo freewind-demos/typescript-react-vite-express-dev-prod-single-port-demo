@@ -1,7 +1,10 @@
 import express from "express"; // 引入 Express
-import type { Request as ExpressRequest, Response as ExpressResponse } from "express"; // 引入 Express 请求响应类型
+import type {
+  Request as ExpressRequest,
+  Response as ExpressResponse,
+} from "express"; // 引入 Express 请求响应类型
 import type { Plugin } from "vite"; // 引入 Vite 插件类型
-import { createApiRouter } from "./api/readFile.js"; // 引入共用的 API 本体
+import { createApiRouter } from "./api/readFile"; // 引入共用的 API 本体
 
 // 开发环境专用插件：把 API 本体挂成 Vite 中间件，与页面共用一个端口
 export const devApiPlugin = (): Plugin => ({

@@ -1,6 +1,6 @@
 import { StrictMode } from "react"; // 引入 React 严格模式
 import { createRoot } from "react-dom/client"; // 引入 React 挂载 API
-import App from "./App.js"; // 引入页面组件
+import App from "./App"; // 引入页面组件
 import "./App.css"; // 引入样式
 
 // 挂载根节点
