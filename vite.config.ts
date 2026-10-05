@@ -8,7 +8,8 @@ export default defineConfig(({ command }) => ({
   // React 插件负责 JSX 转换与 Fast Refresh；dev API 插件把 API 挂成中间件
   plugins: [react(), devApiPlugin()],
   // 开发服务器端口：Vite 不认 APP_PORT，在这里显式接，strictPort 保证被占时直接报错
-  // 惰性取值：vite build 也会加载这份配置，但 build 阶段不监听端口
+  // 构建时 Vite 的 configLoader: 'native' 会对无后缀的相对导入发未来兼容警告，
+  // 当前靠构建期 bundle 补全解析，能正常工作
   server: { port: getEnvPort(), strictPort: true },
   // 前端产物目录；生产环境由 express.static 提供页面
   build: { outDir: "dist" },

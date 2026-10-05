@@ -22,7 +22,7 @@ pnpm run typecheck
 # 开发：Vite 一个端口同时提供页面与 API（APP_PORT=52306）
 pnpm run dev
 
-# 生产：先构建前端，再启动 Node server（APP_PORT=52306）
+# 生产：构建前端与 server 产物，再启动 Node server（APP_PORT=52306）
 pnpm run build
 pnpm start
 ```
@@ -35,8 +35,8 @@ pnpm start
 
 - dev 和生产用的是同一个端口 52306，两者不能同时跑。
 - 端口来自环境变量 `APP_PORT`，由 `package.json` 的 scripts 注入。缺失时 `getEnvPort()` 兜底为 `-1`，Vite 与 `app.listen` 都会报端口非法。
-- 服务端代码不打包，由 `tsx` 直接执行 TypeScript 源码，因此 `./api/readFile` 这类导入不需要写 `.js` 后缀，`tsx` 会解析到 `.ts` 文件。
-- `express.static("dist")` 用的是相对路径，所以 `start` 必须在项目根目录执行。
+- 服务端代码由 `vite build --ssr` 打成产物，`node` 直接跑编译结果，不加载 TS 源码。
+- 服务端产物的目录不能放进 `dist/`，否则会被 `express.static` 整个静态暴露，server 源码和 sourcemap 都能被 HTTP 直接拉到。所以用 `dist-ssr/server/`。
 - 读取接口只接受绝对路径，传入相对路径返回 400；文件不存在返回 404。
 - 这个接口按用户给的绝对路径直接读文件，等于把服务器文件系统暴露给前端，仅适合本机演示，不要放到公网。
 - 页面没有前端路由，因此不需要 history fallback。
@@ -54,7 +54,19 @@ API 本体在 `src/server/api/readFile.ts`，导出 `createApiRouter()`，包含
 挂载方式有两处，各自只做一件事：
 
 - `vite.config.ts`（开发）就是那个 dev server 的配置。`pnpm run dev` 只跑 `vite` 命令，没有自建的 Node 进程，Vite 自己监听端口。配置里 `plugins` 挂 `devApiPlugin()`，插件在 `configureServer` 里插一个中间件，命中 `/api/` 的请求转交一个 Express app，其余放行给 Vite 自己处理。
-- `src/server/main.ts`（生产）是独立 Node 进程：`express.static("dist")` 提供构建产物页面，进程内 `app.listen()` 监听，同一个端口上同时有页面和 API。
+- `src/server/main.ts`（生产）是独立 Node 进程：`express.static(dist)` 提供构建产物页面，进程内 `app.listen()` 监听，同一个端口上同时有页面和 API。
+
+### 为什么生产要 build 两次
+
+```
+"build": "vite build && vite build --ssr src/server/main.ts --outDir dist-ssr/server"
+```
+
+第一条 `vite build` 走默认路径：入口是 `index.html`，目标是浏览器，产物在 `dist/`。
+
+第二条加 `--ssr` 换掉三件事：解析目标从浏览器换成 Node（`node:fs/promises` 这类内置模块留在外部，不打进 bundle）、入口从 `index.html` 换成 `src/server/main.ts`、输出改到 `dist-ssr/server/`。产物是 ESM，`node` 直接能跑。
+
+服务端走构建期而不是 `tsx` 直跑源码，理由有两个：一是 TypeScript 和相对导入在构建期就解析完，运行时零转译；二是 Vite 插件挂在这条管线上，`enforce: "pre"` 的 transform 能改写 server 源码——像 `$FL$` 这类构建期占位符替换，`tsx` 的 esbuild loader 做不了。
 
 ### 关键代码解读
 
@@ -62,13 +74,11 @@ API 本体在 `src/server/api/readFile.ts`，导出 `createApiRouter()`，包含
 
 `vite.config.ts` 会 import 服务端代码（`env.ts` 与 dev 插件），所以这份配置不再只是「产物放哪」，它同时是 dev server 的配置。好处是 dev 就是一个纯 `vite` 进程，代价是配置与运行时不再解耦。
 
-生产侧只用一条 `vite build`，只构建前端；server 部分不打包，直接由 `tsx` 执行源码。取舍是这样：
+`dist` 路径的定位值得单独说。`import.meta.dirname` 是**产物文件**的位置，不是源码的位置——`src/common/env.ts` 打包后被拉平到 `dist-ssr/server/main.js`，运行时 `import.meta.dirname` 指向的是产物层。所以如果写 `path.resolve(import.meta.dirname, "../../dist")`，这个 `../../` 是在预估产物深度，改 `--outDir` 就会指错。
 
-- 得到的好处是 server 不需要单独的构建步骤，两种模式的启动方式统一，源码不用为了产物目录调相对层级。
-- 付出的代价是没有「编译通过才上线」这道闸——`pnpm run build` 只检查前端。server 的类型错误要到 `tsx` 启动时才暴露，所以 `pnpm run typecheck` 是必要的补充，它覆盖 `src` 下全部源码。
-- 模块解析发生在运行期，所以导入不带 `.js` 后缀。哪天换成 `vite build --ssr` + `node`，这批 import 要一并加回后缀。
+`findRoot()` 换掉了这个预估：从 `import.meta.dirname` 逐级向上找 `package.json`，用命中的目录再拼 `dist`。这样代码里没有相对层级，源码位置和产物位置都能得到同一个根，切换 tsx 直跑还是 build 产物都不用改这行。
 
-`start` 里的 `APP_PORT` 前缀写在 `tsx` 前面，因为前缀只作用于紧跟其后的那一个命令，不能跨 `&&`。
+不能用 `process.cwd()` 代替——服务被 launchd 之类启动时工作目录不可控，从仓库外启动就找不到根。也不用 `tsconfig.json` 作锚点，子目录里常有多份（`tsconfig.app.json` 之类），容易误命中。
 
 前端是 React 19，`src/web/main.tsx` 用 `createRoot` 挂载 `App`，`App.tsx` 里三个状态（路径、内容、读取中）都用 React Hook，样式是一个 CSS 文件。这个组件在 dev 和生产下没有任何分支判断——它只知道向 `/api/read-file` 发请求，谁来回答它，取决于当前跑的是哪种 server。
 
@@ -77,5 +87,6 @@ API 本体在 `src/server/api/readFile.ts`，导出 `createApiRouter()`，包含
 - 页面来源：dev 是 Vite 实时编译，生产是 `dist/` 静态产物。
 - API 挂载：dev 是 Vite 插件中间件，生产是进程内 Express 路由。
 - 页面与 API 是否同源同进程：dev 是，只有一个 Vite 进程；生产是一个 Node 进程同时做静态服务和 API。
+- 代码执行：dev 走 Vite 转译管线，生产跑编译产物。
 - 热更新：dev 下页面有，API 代码改动需要重启；生产没有。
 - 前端代码与 API 本体：两种模式完全一致，没有任何分支。

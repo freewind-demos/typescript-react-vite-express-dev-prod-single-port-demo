@@ -38,7 +38,7 @@ const App = (): React.JSX.Element => {
       {/* 说明 */}
       <p className="hint">
         开发：<code>pnpm run dev</code>（Vite 承载页面 + API）｜生产：<code>pnpm run build</code> 后 <code>pnpm start</code>（Node
-        server 承载页面 + API）
+        server 跑编译产物，承载页面 + API）
       </p>
       {/* 输入行 */}
       <div className="row">
