@@ -5,29 +5,38 @@
 
 body {
   margin: 0;
-  padding: 16px;
   font-family: system-ui, -apple-system, "PingFang SC", sans-serif;
   color: #1a1a1a;
 }
 
-h1 {
+/* 页面容器 */
+.app {
+  padding: 16px;
+}
+
+/* 标题 */
+.app h1 {
   font-size: 20px;
   margin: 0 0 8px;
 }
 
+/* 说明文字 */
 .hint {
   font-size: 13px;
   color: #555;
   margin: 0 0 16px;
 }
 
+/* 输入行：窄屏换行，宽屏并排 */
 .row {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-input {
-  flex: 1;
+/* 输入框 */
+.row input {
+  flex: 1 1 260px;
   min-width: 0;
   padding: 10px 12px;
   font-size: 14px;
@@ -35,7 +44,9 @@ input {
   border-radius: 8px;
 }
 
-button {
+/* 按钮 */
+.row button {
+  flex: 0 0 auto;
   padding: 10px 20px;
   font-size: 14px;
   color: #fff;
@@ -45,13 +56,24 @@ button {
   cursor: pointer;
 }
 
-pre {
+/* 按钮禁用态 */
+.row button:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+/* 结果文本域 */
+.app textarea {
+  display: block;
+  width: 100%;
+  min-height: 240px;
   margin-top: 16px;
   padding: 12px;
-  min-height: 120px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13px;
-  white-space: pre-wrap;
-  word-break: break-all;
+  line-height: 1.6;
+  resize: vertical;
   background: #f5f5f5;
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
 }

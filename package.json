@@ -1,18 +1,25 @@
 {
-  "name": "typescript-vite-express-dev-prod-single-port-demo",
+  "name": "typescript-react-vite-express-dev-prod-single-port-demo",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "WEB_ROOT=\"$PWD\" FILES_ROOT=\"$PWD/files\" APP_PORT=52301 vite-node src/server/devServer.ts",
+    "dev": "WEB_ROOT=\"$PWD\" APP_PORT=52301 vite-node src/server/devServer.ts",
     "build": "vite build && vite build --ssr src/server/main.ts --outDir dist-ssr/server",
-    "start": "WEB_ROOT=\"$PWD\" FILES_ROOT=\"$PWD/files\" APP_PORT=52302 node dist-ssr/server/main.js"
+    "start": "WEB_ROOT=\"$PWD\" APP_PORT=52302 node dist-ssr/server/main.js"
+  },
+  "dependencies": {
+    "express": "5.2.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.10.0",
-    "express": "^5.1.0",
-    "typescript": "^5.7.0",
-    "vite": "^6.0.0",
-    "vite-node": "^2.1.0"
+    "@types/express": "5.0.6",
+    "@types/node": "22.20.5",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "6.0.5",
+    "typescript": "7.0.2",
+    "vite": "8.2.1",
+    "vite-node": "6.0.0"
   }
 }

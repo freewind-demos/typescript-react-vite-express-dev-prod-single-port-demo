@@ -29,6 +29,3 @@ export const WEB_ROOT_DIR = requireEnv("WEB_ROOT");
 
 // 前端产物目录：生产环境由 express.static 提供
 export const WEB_DIST_DIR = path.join(WEB_ROOT_DIR, "dist");
-
-// 允许被读取的文件根目录：读取接口的路径白名单边界
-export const FILES_ROOT_DIR = requireEnv("FILES_ROOT");

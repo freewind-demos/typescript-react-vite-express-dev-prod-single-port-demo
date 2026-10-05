@@ -24,13 +24,14 @@ pnpm run build
 pnpm start
 ```
 
-打开 http://127.0.0.1:52301 （dev）或 http://127.0.0.1:52302 （生产），输入相对路径如 `README.txt` 或 `notes.md`，点击「读取」。
+打开 http://127.0.0.1:52301 （dev）或 http://127.0.0.1:52302 （生产），在输入框里填一个文件的绝对路径，点「读取」，内容会显示在下方文本域里。仓库自带的示例文件路径是 `files/notes.md` 与 `files/README.txt`，把它们拼到项目绝对路径后面即可。
 
 ## 注意事项
 
 - 两个端口不重叠，dev 与生产服务可同时运行。
 - 端口和路径全部由启动命令通过环境变量传入，代码里没有默认值；缺失 `APP_PORT` 或 `WEB_ROOT` 时服务直接报错退出，不会静默退化成别的端口。
-- 可被读取的文件被限制在 `files/` 目录内，传入 `../package.json` 会被拒绝。
+- 读取接口只接受绝对路径，传入相对路径会返回 400；文件不存在返回 404。
+- 这个接口按用户给的绝对路径直接读文件，等于把服务器文件系统暴露给前端，仅适合本机演示，不要放到公网。
 - `pnpm start` 只启动、不构建；上线流程是 `pnpm run build` 然后 `pnpm start`。
 - 页面没有前端路由，因此不需要 history fallback。
 
@@ -42,7 +43,7 @@ pnpm start
 
 ### demo 原理
 
-API 本体在 `src/server/api/readFile.ts`，导出 `createApiRouter()`，包含两个端点：`/api/health` 探活、`/api/read-file?path=` 读取指定文件。它不知道自己在哪个端口上，也不关心自己被谁挂载。
+API 本体在 `src/server/api/readFile.ts`，导出 `createApiRouter()`，包含两个端点：`/api/health` 探活、`/api/read-file?path=` 按绝对路径读取文件。它不知道自己在哪个端口上，也不关心自己被谁挂载。
 
 挂载方式有两处，各自只做一件事：
 
@@ -56,16 +57,16 @@ API 本体在 `src/server/api/readFile.ts`，导出 `createApiRouter()`，包含
 `package.json` 里端口前缀写在真正启动服务的那条命令上，不能跨 `&&`：
 
 ```json
-"dev":   "WEB_ROOT=\"$PWD\" FILES_ROOT=\"$PWD/files\" APP_PORT=52301 vite-node src/server/devServer.ts",
+"dev":   "WEB_ROOT=\"$PWD\" APP_PORT=52301 vite-node src/server/devServer.ts",
 "build": "vite build && vite build --ssr src/server/main.ts --outDir dist-ssr/server",
-"start": "WEB_ROOT=\"$PWD\" FILES_ROOT=\"$PWD/files\" APP_PORT=52302 node dist-ssr/server/main.js"
+"start": "WEB_ROOT=\"$PWD\" APP_PORT=52302 node dist-ssr/server/main.js"
 ```
 
 这也解释了为什么 `start` 不带 `build`：`APP_PORT=… pnpm build && pnpm start` 里前缀只作用于 `build`，第二条命令根本拿不到端口。
 
 服务端同样用 Vite 构建产物跑，而不是 `tsx` 直跑源码。`dist-ssr/server/` 与 `src/server/` 同深度，入口才能解析到正确的位置；server 产物不放进 `dist/`，否则会被 `express.static` 整个静态暴露。
 
-最后是安全边界。`resolveInsideFilesRoot()` 把请求里的相对路径解析成绝对路径后，与 `FILES_ROOT` 求相对关系，逃出根目录就拒绝。演示里 `../package.json` 返回 400，不存在的文件返回 404。
+前端是 React 19，`src/web/main.tsx` 用 `createRoot` 挂载 `App`，`App.tsx` 里三个状态（路径、内容、读取中）都用 React Hook，样式是一个 CSS 文件。这个组件在 dev 和生产下没有任何分支判断——它只知道向 `/api/read-file` 发请求，谁来回答它，取决于当前跑的是哪种 server。
 
 ### 启动方式对照
 
